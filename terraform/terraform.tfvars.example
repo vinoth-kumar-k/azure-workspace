@@ -1,0 +1,4 @@
+location             = "southeastasia"
+resource_group_name  = "cloud-shell-custom-rg"
+storage_account_name = "csstorage12345xyz" # This must be unique globally, user should change this.
+file_share_name      = "cloudshell"

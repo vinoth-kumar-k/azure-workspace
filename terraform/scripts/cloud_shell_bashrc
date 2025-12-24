@@ -1,0 +1,68 @@
+# Custom Bashrc for Azure Cloud Shell
+
+# Ensure $HOME/bin is in PATH (do this first so we can check for tools)
+if [[ ":$PATH:" != *":$HOME/bin:"* ]]; then
+    export PATH="$HOME/bin:$PATH"
+fi
+
+# Aliases
+alias c='clear'
+alias k='kubectl'
+alias ll='ls -alF'
+alias grep='grep --color=auto'
+
+# Functions
+function kubectl-change-ns() {
+  kubectl config set-context --current --namespace "$1"
+}
+
+# Alias for function (kset-ns)
+alias kset-ns='kubectl-change-ns'
+
+# Helpful Tools Setup
+mkdir -p "$HOME/bin"
+
+# 1. yq - Portable command-line YAML processor
+if ! command -v yq &> /dev/null; then
+    echo "yq not found. Installing..."
+    wget -q https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O "$HOME/bin/yq"
+    chmod +x "$HOME/bin/yq"
+    echo "yq installed."
+fi
+
+# 2. fzf - Command-line fuzzy finder
+if ! command -v fzf &> /dev/null; then
+    echo "fzf not found. Installing..."
+    # Downloading specific version for stability
+    wget -q https://github.com/junegunn/fzf/releases/download/v0.48.0/fzf-0.48.0-linux_amd64.tar.gz -O fzf.tar.gz
+    tar -xzf fzf.tar.gz -C "$HOME/bin" fzf
+    rm fzf.tar.gz
+    chmod +x "$HOME/bin/fzf"
+    echo "fzf installed."
+fi
+
+# 3. kubectx & kubens - Kubernetes context and namespace switchers
+# Using version v0.9.5
+if ! command -v kubectx &> /dev/null; then
+    echo "kubectx not found. Installing..."
+    wget -q https://github.com/ahmetb/kubectx/releases/download/v0.9.5/kubectx_v0.9.5_linux_x86_64.tar.gz -O kubectx.tar.gz
+    tar -xzf kubectx.tar.gz -C "$HOME/bin" kubectx
+    rm kubectx.tar.gz
+    chmod +x "$HOME/bin/kubectx"
+    echo "kubectx installed."
+fi
+
+if ! command -v kubens &> /dev/null; then
+    echo "kubens not found. Installing..."
+    wget -q https://github.com/ahmetb/kubectx/releases/download/v0.9.5/kubens_v0.9.5_linux_x86_64.tar.gz -O kubens.tar.gz
+    tar -xzf kubens.tar.gz -C "$HOME/bin" kubens
+    rm kubens.tar.gz
+    chmod +x "$HOME/bin/kubens"
+    echo "kubens installed."
+fi
+
+
+# NOTE: Since this file resides in your persisted storage (e.g., ~/clouddrive/.bashrc),
+# you must source it from your main ~/.bashrc to apply these settings.
+# Add the following line to your ~/.bashrc:
+# [ -f "$HOME/clouddrive/.bashrc" ] && source "$HOME/clouddrive/.bashrc"
