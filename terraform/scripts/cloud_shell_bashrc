@@ -19,17 +19,48 @@ function kubectl-change-ns() {
 # Alias for function (kset-ns)
 alias kset-ns='kubectl-change-ns'
 
-# Helpful Tools Setup (e.g. yq)
-# Check if yq is installed. If not, download it to $HOME/bin
+# Helpful Tools Setup
+mkdir -p "$HOME/bin"
+
+# 1. yq - Portable command-line YAML processor
 if ! command -v yq &> /dev/null; then
     echo "yq not found. Installing..."
-    mkdir -p "$HOME/bin"
-    # Download yq (using generic linux amd64 build)
-    # Using wget as it is standard in Cloud Shell
-    wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O "$HOME/bin/yq"
+    wget -q https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O "$HOME/bin/yq"
     chmod +x "$HOME/bin/yq"
-    echo "yq installed to $HOME/bin/yq"
+    echo "yq installed."
 fi
+
+# 2. fzf - Command-line fuzzy finder
+if ! command -v fzf &> /dev/null; then
+    echo "fzf not found. Installing..."
+    # Downloading specific version for stability
+    wget -q https://github.com/junegunn/fzf/releases/download/v0.48.0/fzf-0.48.0-linux_amd64.tar.gz -O fzf.tar.gz
+    tar -xzf fzf.tar.gz -C "$HOME/bin" fzf
+    rm fzf.tar.gz
+    chmod +x "$HOME/bin/fzf"
+    echo "fzf installed."
+fi
+
+# 3. kubectx & kubens - Kubernetes context and namespace switchers
+# Using version v0.9.5
+if ! command -v kubectx &> /dev/null; then
+    echo "kubectx not found. Installing..."
+    wget -q https://github.com/ahmetb/kubectx/releases/download/v0.9.5/kubectx_v0.9.5_linux_x86_64.tar.gz -O kubectx.tar.gz
+    tar -xzf kubectx.tar.gz -C "$HOME/bin" kubectx
+    rm kubectx.tar.gz
+    chmod +x "$HOME/bin/kubectx"
+    echo "kubectx installed."
+fi
+
+if ! command -v kubens &> /dev/null; then
+    echo "kubens not found. Installing..."
+    wget -q https://github.com/ahmetb/kubectx/releases/download/v0.9.5/kubens_v0.9.5_linux_x86_64.tar.gz -O kubens.tar.gz
+    tar -xzf kubens.tar.gz -C "$HOME/bin" kubens
+    rm kubens.tar.gz
+    chmod +x "$HOME/bin/kubens"
+    echo "kubens installed."
+fi
+
 
 # NOTE: Since this file resides in your persisted storage (e.g., ~/clouddrive/.bashrc),
 # you must source it from your main ~/.bashrc to apply these settings.
