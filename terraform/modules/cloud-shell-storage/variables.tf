@@ -22,9 +22,3 @@ variable "source_file_path" {
   description = "Local path to the .bashrc file to upload"
   type        = string
 }
-
-variable "tags" {
-  description = "A map of tags to add to all resources"
-  type        = map(string)
-  default     = {}
-}

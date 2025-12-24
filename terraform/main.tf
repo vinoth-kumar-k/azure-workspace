@@ -19,5 +19,4 @@ module "cloud_shell_storage" {
   storage_account_name = var.storage_account_name
   file_share_name      = var.file_share_name
   source_file_path     = "${path.module}/scripts/cloud_shell_bashrc"
-  tags                 = var.tags
 }

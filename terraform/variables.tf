@@ -20,9 +20,3 @@ variable "file_share_name" {
   type        = string
   default     = "cloudshell" # Often default is similar, but we can set it.
 }
-
-variable "tags" {
-  description = "A map of tags to add to all resources"
-  type        = map(string)
-  default     = {}
-}
