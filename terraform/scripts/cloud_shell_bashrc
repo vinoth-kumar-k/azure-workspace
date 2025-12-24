@@ -1,11 +1,15 @@
 # Custom Bashrc for Azure Cloud Shell
 
+# Ensure $HOME/bin is in PATH (do this first so we can check for tools)
+if [[ ":$PATH:" != *":$HOME/bin:"* ]]; then
+    export PATH="$HOME/bin:$PATH"
+fi
+
 # Aliases
 alias c='clear'
 alias k='kubectl'
 alias ll='ls -alF'
 alias grep='grep --color=auto'
-alias jq='jq'
 
 # Functions
 function kubectl-change-ns() {
@@ -13,14 +17,10 @@ function kubectl-change-ns() {
 }
 
 # Alias for function (kset-ns)
-# Note: Aliases cannot take arguments, but when an alias expands, arguments are appended.
-# However, for clarity and strictness, we might prefer just using the function name or a simpler alias.
-# User requested 'kset-ns' as alias for the functionality.
 alias kset-ns='kubectl-change-ns'
 
 # Helpful Tools Setup (e.g. yq)
 # Check if yq is installed. If not, download it to $HOME/bin
-
 if ! command -v yq &> /dev/null; then
     echo "yq not found. Installing..."
     mkdir -p "$HOME/bin"
@@ -31,7 +31,7 @@ if ! command -v yq &> /dev/null; then
     echo "yq installed to $HOME/bin/yq"
 fi
 
-# Ensure $HOME/bin is in PATH
-if [[ ":$PATH:" != *":$HOME/bin:"* ]]; then
-    export PATH="$HOME/bin:$PATH"
-fi
+# NOTE: Since this file resides in your persisted storage (e.g., ~/clouddrive/.bashrc),
+# you must source it from your main ~/.bashrc to apply these settings.
+# Add the following line to your ~/.bashrc:
+# [ -f "$HOME/clouddrive/.bashrc" ] && source "$HOME/clouddrive/.bashrc"
