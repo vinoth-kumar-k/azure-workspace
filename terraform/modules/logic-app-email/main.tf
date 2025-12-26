@@ -27,7 +27,15 @@ resource "azurerm_logic_app_workflow" "workflow" {
   resource_group_name = var.resource_group_name
   tags                = var.tags
 
-  # 3. Define the Parameters to link the Connection
+  # Define the parameter definition for $connections
+  workflow_parameters = {
+    "$connections" = jsonencode({
+      defaultValue = {}
+      type         = "Object"
+    })
+  }
+
+  # Pass the parameter value for $connections
   parameters = {
     "$connections" = jsonencode({
       office365 = {
