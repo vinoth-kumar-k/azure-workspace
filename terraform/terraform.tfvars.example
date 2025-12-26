@@ -9,6 +9,6 @@ tags = {
   BusinessOwner       = "IT"
   CostCenter          = "1001"
   Environment         = "Production"
-  ServerCode          = "NA"
+  ServerOwner         = "NA"
   WBSCode             = "00000"
 }
