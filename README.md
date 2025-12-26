@@ -15,6 +15,7 @@ Azure Cloud Shell uses an Azure Storage File Share to persist your `$HOME` direc
         *   `yq` (YAML processor)
         *   `fzf` (Fuzzy Finder)
         *   `kubectx` & `kubens` (Kubernetes context/namespace switchers)
+*   **Logic App Alerting (Optional):** Includes a module to provision a Logic App for sending email alerts via Webhook.
 
 ## Prerequisites
 
@@ -53,13 +54,35 @@ Azure Cloud Shell uses an Azure Storage File Share to persist your `$HOME` direc
     # Edit terraform.tfvars
     ```
 
+    **Optional Logic App:**
+    To enable the Logic App for email alerts, set `logic_app_enabled = true` in your `terraform.tfvars`.
+
 4.  **Apply Configuration:**
     ```bash
     terraform apply
     ```
-    Confirm the apply to create the resources and upload the bash script.
+    Confirm the apply to create the resources.
 
-## Activating the Configuration
+## Post-Deployment: Logic App Configuration
+
+If you enabled the Logic App (`email-alert-logic-app`), it requires manual authorization for the Office 365 API Connection:
+1.  Go to the Azure Portal.
+2.  Find the API Connection resource created (e.g., `office365`).
+3.  Authorize the connection with your Office 365 credentials.
+4.  Once authorized, the Logic App will be able to send emails triggered by the Webhook.
+
+**Usage:**
+The Logic App exposes a callback URL (output as `logic_app_callback_url`). You can use this URL in your Kubernetes CronJob or `curl` to trigger an email:
+
+```json
+{
+    "to_address": "recipient@example.com",
+    "subject": "Alert",
+    "content": "Something happened!"
+}
+```
+
+## Activating the Configuration (Cloud Shell)
 
 Once the Terraform apply is successful and you have started Azure Cloud Shell (mounting the storage account you just created):
 

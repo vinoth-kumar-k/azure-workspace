@@ -3,6 +3,9 @@ resource_group_name  = "cloud-shell-custom-rg"
 storage_account_name = "csstorage12345xyz" # This must be unique globally, user should change this.
 file_share_name      = "cloudshell"
 
+# Enable to provision the Logic App
+logic_app_enabled = true
+
 tags = {
   ApplicationService  = "CloudShell"
   BusinessApplication = "DevTools"

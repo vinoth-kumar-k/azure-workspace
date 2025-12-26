@@ -26,3 +26,9 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "logic_app_enabled" {
+  description = "Enable provisioning of the Email Logic App"
+  type        = bool
+  default     = false
+}
