@@ -72,18 +72,7 @@ if ! command -v yq &> /dev/null; then
     echo "yq installed."
 fi
 
-# 2. fzf - Command-line fuzzy finder
-if ! command -v fzf &> /dev/null; then
-    echo "fzf not found. Installing..."
-    # Downloading specific version for stability
-    wget -q https://github.com/junegunn/fzf/releases/download/v0.48.0/fzf-0.48.0-linux_amd64.tar.gz -O fzf.tar.gz
-    tar -xzf fzf.tar.gz -C "$HOME/bin" fzf
-    rm fzf.tar.gz
-    chmod +x "$HOME/bin/fzf"
-    echo "fzf installed."
-fi
-
-# 3. kubectx & kubens - Kubernetes context and namespace switchers
+# 2. kubectx & kubens - Kubernetes context and namespace switchers
 # Using version v0.9.5
 if ! command -v kubectx &> /dev/null; then
     echo "kubectx not found. Installing..."
