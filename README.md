@@ -29,9 +29,22 @@ Azure Cloud Shell uses an Azure Storage File Share to persist your `$HOME` direc
     ```
 
 2.  **Initialize Terraform:**
-    ```bash
-    terraform init
-    ```
+
+    *   **Local State:**
+        ```bash
+        terraform init
+        ```
+
+    *   **Remote State (Azure Blob Storage):**
+        If you wish to store the Terraform state remotely in Azure Blob Storage, use the following command (requires an existing Storage Account and Container). This uses your current Azure CLI login credentials.
+
+        ```bash
+        terraform init \
+          -backend-config="resource_group_name=<resource_group_name>" \
+          -backend-config="storage_account_name=<storage_account_name>" \
+          -backend-config="container_name=<container_name>" \
+          -backend-config="key=terraform.tfstate"
+        ```
 
 3.  **Configure Variables:**
     Copy the example variable file and update it with your desired settings (unique storage account name, region, etc.).
