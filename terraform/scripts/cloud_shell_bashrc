@@ -35,6 +35,15 @@ alias ....='cd ../../..'
 # ==========================================
 # Completions
 # ==========================================
+# Source system bash completion if not already loaded (required for kubectl completion)
+if ! declare -F _get_comp_words_ref >/dev/null; then
+    if [ -f /etc/bash_completion ]; then
+        source /etc/bash_completion
+    elif [ -f /usr/share/bash-completion/bash_completion ]; then
+        source /usr/share/bash-completion/bash_completion
+    fi
+fi
+
 # Kubectl completion
 source <(kubectl completion bash)
 # Enable completion for alias 'k'
