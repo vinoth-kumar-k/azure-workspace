@@ -33,6 +33,14 @@ alias ...='cd ../..'
 alias ....='cd ../../..'
 
 # ==========================================
+# Completions
+# ==========================================
+# Kubectl completion
+source <(kubectl completion bash)
+# Enable completion for alias 'k'
+complete -o default -F __start_kubectl k
+
+# ==========================================
 # Functions
 # ==========================================
 function kubectl-change-ns() {
