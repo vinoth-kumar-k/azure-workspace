@@ -1,4 +1,10 @@
 terraform {
+  # Remote Backend Configuration
+  # This block is empty to allow partial configuration.
+  # Run 'terraform init -backend-config=...' to specify the Storage Account details.
+  # It will inherit the authentication from 'az login' (Azure CLI).
+  backend "azurerm" {}
+
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
