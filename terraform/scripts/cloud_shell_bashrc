@@ -5,13 +5,36 @@ if [[ ":$PATH:" != *":$HOME/bin:"* ]]; then
     export PATH="$HOME/bin:$PATH"
 fi
 
+# ==========================================
 # Aliases
+# ==========================================
 alias c='clear'
 alias k='kubectl'
 alias ll='ls -alF'
 alias grep='grep --color=auto'
 
+# Kubectl aliases
+alias kg='kubectl get'
+alias kgd='kubectl get deployment'
+alias kgs='kubectl get services'
+alias kgn='kubectl get nodes'
+alias kgp='kubectl get pods'
+alias kgns='kubectl get namespaces'
+alias kl='kubectl logs'
+alias klf='kubectl logs -f'
+alias kdp='kubectl describe pod'
+alias kd='kubectl describe'
+alias ke='kubectl get events'
+alias kgi='kubectl get ingress'
+
+# Navigation aliases
+alias ..='cd ..'
+alias ...='cd ../..'
+alias ....='cd ../../..'
+
+# ==========================================
 # Functions
+# ==========================================
 function kubectl-change-ns() {
   kubectl config set-context --current --namespace "$1"
 }
@@ -19,7 +42,26 @@ function kubectl-change-ns() {
 # Alias for function (kset-ns)
 alias kset-ns='kubectl-change-ns'
 
+function aks-login() {
+    # Ensure RG and AKS variables are set before running this, or pass them as args.
+    # Assuming user intends to use global env vars RG and AKS.
+    az aks get-credentials --resource-group "$RG" --name "$AKS" --overwrite-existing
+}
+
+# ==========================================
+# Environment & Config
+# ==========================================
+export LOCATION=southeastasia
+git config --global color.ui auto
+
+# Set Subscription
+# Note: This runs on every shell startup.
+# Ensure the identity has permissions or this might error.
+az account set --subscription GO-S-A-01
+
+# ==========================================
 # Helpful Tools Setup
+# ==========================================
 mkdir -p "$HOME/bin"
 
 # 1. yq - Portable command-line YAML processor
@@ -61,7 +103,9 @@ if ! command -v kubens &> /dev/null; then
     echo "kubens installed."
 fi
 
-
+# ==========================================
+# Instructions
+# ==========================================
 # NOTE: Since this file resides in your persisted storage (e.g., ~/clouddrive/.bashrc),
 # you must source it from your main ~/.bashrc to apply these settings.
 # Add the following line to your ~/.bashrc:
