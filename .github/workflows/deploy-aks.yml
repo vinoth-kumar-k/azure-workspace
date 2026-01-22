@@ -11,6 +11,10 @@ on:
         required: true
         type: string
         description: "Docker Image Tag to deploy"
+      registry-url:
+        required: true
+        type: string
+        description: "Container Registry URL (e.g. myacr.azurecr.io)"
       cluster-name:
         required: true
         type: string
@@ -50,4 +54,4 @@ jobs:
           namespace: default
           manifests: ${{ inputs.manifests-path }}
           images: |
-            myacr.azurecr.io/myapp:${{ inputs.image-tag }}
+            ${{ inputs.registry-url }}/myapp:${{ inputs.image-tag }}

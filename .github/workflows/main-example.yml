@@ -28,12 +28,12 @@ jobs:
     with:
       environment: 'dev'
       image-tag: ${{ needs.build.outputs.version }}
+      registry-url: 'mycompanyacr.azurecr.io'
       cluster-name: 'aks-cluster-dev'
       resource-group: 'rg-dev'
     secrets: inherit
 
   # 3. CD Phase - VM (Legacy/Prod)
-  # Example of deploying to a VM environment
   deploy-vm-prod:
     needs: build
     if: github.ref == 'refs/heads/main'
@@ -42,4 +42,5 @@ jobs:
       environment: 'prod'
       vm-name: 'web-server-01'
       resource-group: 'rg-prod'
+      storage-account-name: 'deploymentsstg'
     secrets: inherit

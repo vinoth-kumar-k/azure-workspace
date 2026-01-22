@@ -15,6 +15,10 @@ on:
         required: true
         type: string
         description: "Azure Resource Group of the VM"
+      storage-account-name:
+        required: true
+        type: string
+        description: "Storage Account for staging artifacts"
       deployment-script:
         required: false
         type: string
@@ -39,22 +43,47 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      - name: Upload to Staging Blob
+        id: upload
+        run: |
+          # Create a container if not exists
+          az storage container create --account-name ${{ inputs.storage-account-name }} --name deployment-staging --auth-mode login
+
+          # Zip the artifacts
+          cd ./artifacts
+          zip -r app-package.zip .
+
+          # Upload
+          az storage blob upload \
+            --account-name ${{ inputs.storage-account-name }} \
+            --container-name deployment-staging \
+            --name app-package-${{ github.run_id }}.zip \
+            --file app-package.zip \
+            --auth-mode login
+
+          # Generate SAS Token (expires in 1 hour)
+          end=$(date -u -d "60 minutes" '+%Y-%m-%dT%H:%MZ')
+          sas=$(az storage blob generate-sas \
+            --account-name ${{ inputs.storage-account-name }} \
+            --container-name deployment-staging \
+            --name app-package-${{ github.run_id }}.zip \
+            --permissions r \
+            --expiry $end \
+            --auth-mode login \
+            --as-user \
+            --output tsv)
+
+          echo "sas_token=$sas" >> $GITHUB_OUTPUT
+
       - name: Deploy via Run Command
         uses: azure/CLI@v1
         with:
           inlineScript: |
-            # Zip the artifacts to a single file for transport
-            cd ./artifacts
-            zip -r app-package.zip .
-
-            # Use 'az vm run-command' to execute logic on the VM
-            # Note: In a real scenario, we might upload the zip to Blob Storage first,
-            # then pass the SAS URL to the VM script.
-            # Here we assume a simple script execution or small payload.
+            blobUrl="https://${{ inputs.storage-account-name }}.blob.core.windows.net/deployment-staging/app-package-${{ github.run_id }}.zip?${{ steps.upload.outputs.sas_token }}"
 
             az vm run-command invoke \
               --command-id RunPowerShellScript \
               --name ${{ inputs.vm-name }} \
               --resource-group ${{ inputs.resource-group }} \
               --scripts @${{ inputs.deployment-script }} \
-              --parameters "PackageUrl=..." # Pass SAS URL or similar logic
+              --parameters "PackageUrl=$blobUrl"

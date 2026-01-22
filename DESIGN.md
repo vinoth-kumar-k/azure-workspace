@@ -32,6 +32,7 @@ DESIGN.md                  # This document
 
 **Key Features:**
 *   **Dynamic Runners:** Supports `ubuntu-latest` for .NET Core and `windows-latest` for legacy .NET Framework applications via the `runs-on` input.
+*   **Legacy Support:** If `runs-on: windows-latest` is selected, the workflow automatically switches to using `setup-msbuild` and `nuget restore` instead of the `dotnet` CLI.
 *   **Automated Versioning:** Integrates **GitVersion** to automatically determine Semantic Versioning (SemVer) based on the git history, tagging assemblies and Docker images consistently.
 *   **Artifact Generation:** Produces generic zip artifacts for VM deployment and Docker images for container deployment.
 *   **Security:** Implements **OIDC (OpenID Connect)** for passwordless authentication to Azure resources (ACR).
@@ -45,15 +46,22 @@ DESIGN.md                  # This document
 2.  **Auth:** OIDC Login to Azure.
 3.  **Context:** Sets kubeconfig for the target cluster.
 4.  **Deploy:** Uses `azure/k8s-deploy` to apply manifests, swapping the image tag with the one generated in CI.
+    *   *Input:* Accepts `registry-url` to support different ACRs per environment.
 
 ### 3.3 CD Strategy: Virtual Machine (`deploy-vm.yml`)
 
 **Purpose:** Deploys legacy or non-containerized applications to Azure VMs (e.g., IIS web apps, Windows Services).
 
 **Flow:**
-1.  **Artifact Retrieval:** Downloads the build artifacts from the CI run.
-2.  **Execution:** Uses **Azure Run Command** (`az vm run-command`) to trigger a deployment script resident on the VM or in the repo.
-    *   *Decision:* We delegate the specific installation logic (e.g., "Stop IIS", "Copy Files", "Start IIS") to a PowerShell script (`vm-deploy.ps1`) to keep the pipeline generic.
+1.  **Artifact Staging:**
+    *   Downloads the build artifacts.
+    *   Zips them into a single package.
+    *   Uploads the package to a **Staging Azure Blob Storage** account.
+    *   Generates a short-lived **SAS Token**.
+2.  **Execution:**
+    *   Uses **Azure Run Command** (`az vm run-command`) to trigger a deployment script resident on the VM (or passed as a parameter).
+    *   Passes the `PackageUrl` (Blob URL + SAS) to the script.
+    *   *Decision:* The repository must include a `scripts/vm-deploy.ps1` that accepts the URL, downloads the file, and performs the installation (e.g., Unzip to IIS folder).
 
 ## 4. The "No Dockerfile" Strategy
 
