@@ -1,0 +1,123 @@
+name: Universal .NET CI
+
+on:
+  workflow_call:
+    inputs:
+      dotnet-version:
+        required: true
+        type: string
+        description: "Version of .NET SDK (e.g. 6.0.x). Ignored if using legacy mode."
+      runs-on:
+        required: false
+        type: string
+        default: "ubuntu-latest"
+        description: "Runner OS. Use 'windows-latest' for legacy .NET Framework."
+      project-path:
+        required: false
+        type: string
+        default: "."
+        description: "Path to solution or project file"
+      build-docker:
+        required: false
+        type: boolean
+        default: false
+        description: "Build and push Docker image"
+      acr-name:
+        required: false
+        type: string
+        description: "Azure Container Registry Name (without .azurecr.io)"
+    outputs:
+      version:
+        description: "The calculated SemVer"
+        value: ${{ jobs.build-and-test.outputs.version }}
+
+jobs:
+  build-and-test:
+    runs-on: ${{ inputs.runs-on }}
+    outputs:
+      version: ${{ steps.gitversion.outputs.semVer }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Install GitVersion
+        uses: gittools/actions/gitversion/setup@v0
+        with:
+          versionSpec: '5.x'
+
+      - name: Determine Version
+        id: gitversion
+        uses: gittools/actions/gitversion/execute@v0
+
+      # --- Strategy A: Modern .NET (Core/5+) ---
+      - name: Setup .NET
+        if: ${{ !contains(inputs.runs-on, 'windows') }}
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: ${{ inputs.dotnet-version }}
+
+      - name: Restore (Dotnet)
+        if: ${{ !contains(inputs.runs-on, 'windows') }}
+        run: dotnet restore ${{ inputs.project-path }}
+
+      - name: Build (Dotnet)
+        if: ${{ !contains(inputs.runs-on, 'windows') }}
+        run: dotnet build ${{ inputs.project-path }} --configuration Release --no-restore /p:Version=${{ steps.gitversion.outputs.assemblySemVer }}
+
+      - name: Test (Dotnet)
+        if: ${{ !contains(inputs.runs-on, 'windows') }}
+        run: dotnet test ${{ inputs.project-path }} --configuration Release --no-build --verbosity normal
+
+      - name: Publish (Dotnet)
+        if: ${{ !contains(inputs.runs-on, 'windows') }}
+        run: dotnet publish ${{ inputs.project-path }} -c Release -o ./publish /p:Version=${{ steps.gitversion.outputs.assemblySemVer }}
+
+      # --- Strategy B: Legacy .NET Framework (Windows) ---
+      - name: Setup MSBuild
+        if: contains(inputs.runs-on, 'windows')
+        uses: microsoft/setup-msbuild@v1
+
+      - name: Setup NuGet
+        if: contains(inputs.runs-on, 'windows')
+        uses: NuGet/setup-nuget@v1
+
+      - name: Restore (NuGet)
+        if: contains(inputs.runs-on, 'windows')
+        run: nuget restore ${{ inputs.project-path }}
+
+      - name: Build (MSBuild)
+        if: contains(inputs.runs-on, 'windows')
+        run: msbuild ${{ inputs.project-path }} /p:Configuration=Release /p:Version=${{ steps.gitversion.outputs.assemblySemVer }} /p:OutputPath=./publish
+
+      # --- Common: Artifacts ---
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: app-binaries
+          path: ./publish
+
+  docker-build:
+    needs: build-and-test
+    if: inputs.build-docker
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Login to ACR
+        run: az acr login --name ${{ inputs.acr-name }}
+
+      - name: Build and Push Docker Image
+        run: |
+          docker build . -t ${{ inputs.acr-name }}.azurecr.io/myapp:${{ needs.build-and-test.outputs.version }}
+          docker push ${{ inputs.acr-name }}.azurecr.io/myapp:${{ needs.build-and-test.outputs.version }}

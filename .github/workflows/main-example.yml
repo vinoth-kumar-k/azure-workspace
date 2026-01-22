@@ -1,0 +1,46 @@
+name: App CI/CD Orchestrator
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  # 1. CI Phase
+  build:
+    uses: ./.github/workflows/dotnet-ci.yml
+    with:
+      dotnet-version: '6.0.x'
+      build-docker: true
+      acr-name: 'mycompanyacr'
+    secrets: inherit
+
+  # 2. CD Phase - AKS (Dev)
+  deploy-aks-dev:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/deploy-aks.yml
+    with:
+      environment: 'dev'
+      image-tag: ${{ needs.build.outputs.version }}
+      registry-url: 'mycompanyacr.azurecr.io'
+      cluster-name: 'aks-cluster-dev'
+      resource-group: 'rg-dev'
+    secrets: inherit
+
+  # 3. CD Phase - VM (Legacy/Prod)
+  deploy-vm-prod:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/deploy-vm.yml
+    with:
+      environment: 'prod'
+      vm-name: 'web-server-01'
+      resource-group: 'rg-prod'
+      storage-account-name: 'deploymentsstg'
+    secrets: inherit

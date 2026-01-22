@@ -1,0 +1,89 @@
+name: Deploy to VM
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+        description: "Target Environment (dev, staging, prod)"
+      vm-name:
+        required: true
+        type: string
+        description: "Target Virtual Machine Name"
+      resource-group:
+        required: true
+        type: string
+        description: "Azure Resource Group of the VM"
+      storage-account-name:
+        required: true
+        type: string
+        description: "Storage Account for staging artifacts"
+      deployment-script:
+        required: false
+        type: string
+        default: "scripts/vm-deploy.ps1"
+
+jobs:
+  deploy-vm:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+
+    steps:
+      - name: Download Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: app-binaries
+          path: ./artifacts
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Upload to Staging Blob
+        id: upload
+        run: |
+          # Create a container if not exists
+          az storage container create --account-name ${{ inputs.storage-account-name }} --name deployment-staging --auth-mode login
+
+          # Zip the artifacts
+          cd ./artifacts
+          zip -r app-package.zip .
+
+          # Upload
+          az storage blob upload \
+            --account-name ${{ inputs.storage-account-name }} \
+            --container-name deployment-staging \
+            --name app-package-${{ github.run_id }}.zip \
+            --file app-package.zip \
+            --auth-mode login
+
+          # Generate SAS Token (expires in 1 hour)
+          end=$(date -u -d "60 minutes" '+%Y-%m-%dT%H:%MZ')
+          sas=$(az storage blob generate-sas \
+            --account-name ${{ inputs.storage-account-name }} \
+            --container-name deployment-staging \
+            --name app-package-${{ github.run_id }}.zip \
+            --permissions r \
+            --expiry $end \
+            --auth-mode login \
+            --as-user \
+            --output tsv)
+
+          echo "sas_token=$sas" >> $GITHUB_OUTPUT
+
+      - name: Deploy via Run Command
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            blobUrl="https://${{ inputs.storage-account-name }}.blob.core.windows.net/deployment-staging/app-package-${{ github.run_id }}.zip?${{ steps.upload.outputs.sas_token }}"
+
+            az vm run-command invoke \
+              --command-id RunPowerShellScript \
+              --name ${{ inputs.vm-name }} \
+              --resource-group ${{ inputs.resource-group }} \
+              --scripts @${{ inputs.deployment-script }} \
+              --parameters "PackageUrl=$blobUrl"
