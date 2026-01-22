@@ -1,0 +1,60 @@
+name: Deploy to VM
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+        description: "Target Environment (dev, staging, prod)"
+      vm-name:
+        required: true
+        type: string
+        description: "Target Virtual Machine Name"
+      resource-group:
+        required: true
+        type: string
+        description: "Azure Resource Group of the VM"
+      deployment-script:
+        required: false
+        type: string
+        default: "scripts/vm-deploy.ps1"
+
+jobs:
+  deploy-vm:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+
+    steps:
+      - name: Download Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: app-binaries
+          path: ./artifacts
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy via Run Command
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            # Zip the artifacts to a single file for transport
+            cd ./artifacts
+            zip -r app-package.zip .
+
+            # Use 'az vm run-command' to execute logic on the VM
+            # Note: In a real scenario, we might upload the zip to Blob Storage first,
+            # then pass the SAS URL to the VM script.
+            # Here we assume a simple script execution or small payload.
+
+            az vm run-command invoke \
+              --command-id RunPowerShellScript \
+              --name ${{ inputs.vm-name }} \
+              --resource-group ${{ inputs.resource-group }} \
+              --scripts @${{ inputs.deployment-script }} \
+              --parameters "PackageUrl=..." # Pass SAS URL or similar logic
