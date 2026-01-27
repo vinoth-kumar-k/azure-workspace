@@ -1,0 +1,104 @@
+name: Reusable Deploy VM
+
+on:
+  workflow_call:
+    inputs:
+      artifact-name:
+        required: true
+        type: string
+      resource-group:
+        required: true
+        type: string
+      vm-name:
+        required: true
+        type: string
+      storage-account:
+        required: true
+        type: string
+      deployment-strategy:
+        description: 'run-command or custom-script-extension'
+        default: 'run-command'
+        type: string
+    secrets:
+      azure-client-id:
+        required: true
+      azure-tenant-id:
+        required: true
+      azure-subscription-id:
+        required: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Download Artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: drop
+
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.azure-client-id }}
+          tenant-id: ${{ secrets.azure-tenant-id }}
+          subscription-id: ${{ secrets.azure-subscription-id }}
+
+      - name: Upload to Blob Storage
+        id: upload
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            # Create container (idempotent check)
+            exists=$(az storage container exists --name deployments --account-name ${{ inputs.storage-account }} --auth-mode login --output tsv)
+            if [ "$exists" == "False" ]; then
+                az storage container create --name deployments --account-name ${{ inputs.storage-account }} --auth-mode login
+            fi
+
+            # Upload App Package
+            az storage blob upload --account-name ${{ inputs.storage-account }} --container-name deployments --name LegacyApp.zip --file drop/LegacyApp.zip --auth-mode login --overwrite
+
+            # Generate SAS for App Package
+            end=`date -u -d "1 hour" '+%Y-%m-%dT%H:%MZ'`
+            sas=$(az storage blob generate-sas --account-name ${{ inputs.storage-account }} --container-name deployments --name LegacyApp.zip --permissions r --expiry $end --auth-mode login --as-user --output tsv)
+
+            echo "sas-url=https://${{ inputs.storage-account }}.blob.core.windows.net/deployments/LegacyApp.zip?$sas" >> $GITHUB_OUTPUT
+
+      - name: Deploy via Run Command
+        if: ${{ inputs.deployment-strategy == 'run-command' }}
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            az vm run-command invoke \
+              --resource-group ${{ inputs.resource-group }} \
+              --name ${{ inputs.vm-name }} \
+              --command-id RunPowerShellScript \
+              --scripts @scripts/vm-install.ps1 \
+              --parameters "PackageUrl=${{ steps.upload.outputs.sas-url }}"
+
+      - name: Deploy via Custom Script Extension
+        if: ${{ inputs.deployment-strategy == 'custom-script-extension' }}
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+             # Upload Installation Script
+             az storage blob upload --account-name ${{ inputs.storage-account }} --container-name deployments --name vm-install.ps1 --file scripts/vm-install.ps1 --auth-mode login --overwrite
+
+             # Generate SAS for Script
+             end=`date -u -d "1 hour" '+%Y-%m-%dT%H:%MZ'`
+             sas_script=$(az storage blob generate-sas --account-name ${{ inputs.storage-account }} --container-name deployments --name vm-install.ps1 --permissions r --expiry $end --auth-mode login --as-user --output tsv)
+             script_url="https://${{ inputs.storage-account }}.blob.core.windows.net/deployments/vm-install.ps1?$sas_script"
+
+             # Apply Extension
+             az vm extension set \
+               --resource-group ${{ inputs.resource-group }} \
+               --vm-name ${{ inputs.vm-name }} \
+               --name CustomScriptExtension \
+               --publisher Microsoft.Compute \
+               --version 1.10 \
+               --settings "{\"fileUris\": [\"$script_url\"], \"commandToExecute\": \"powershell -ExecutionPolicy Unrestricted -File vm-install.ps1 -PackageUrl ${{ steps.upload.outputs.sas-url }}\"}"

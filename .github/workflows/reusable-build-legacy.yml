@@ -1,0 +1,43 @@
+name: Reusable Build Legacy .NET
+
+on:
+  workflow_call:
+    inputs:
+      solution-path:
+        required: true
+        type: string
+      configuration:
+        default: 'Release'
+        type: string
+    outputs:
+      artifact-name:
+        description: "The name of the uploaded artifact"
+        value: ${{ jobs.build.outputs.artifact-name }}
+
+jobs:
+  build:
+    name: Build Legacy App
+    runs-on: windows-latest
+    outputs:
+      artifact-name: 'legacy-app-package'
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v1.1
+
+      - name: Restore NuGet packages
+        run: nuget restore ${{ inputs.solution-path }}
+
+      - name: Build Solution
+        run: msbuild ${{ inputs.solution-path }} /p:Configuration=${{ inputs.configuration }}
+
+      - name: Zip Build Output
+        run: |
+            Compress-Archive -Path src/LegacyApp/bin/${{ inputs.configuration }}/* -DestinationPath LegacyApp.zip
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: legacy-app-package
+          path: LegacyApp.zip

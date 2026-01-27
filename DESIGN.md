@@ -18,7 +18,8 @@ The system assumes a **Hub-and-Spoke** model:
     # --- Reusable Workflows ---
     dotnet-ci.yml          # CI: Build, Test, Scan, Publish
     deploy-aks.yml         # CD: Deploy to Azure Kubernetes Service
-    deploy-vm.yml          # CD: Deploy to Azure Virtual Machine (Legacy/IIS)
+    reusable-build-legacy.yml # CI: Build Legacy .NET Framework
+    reusable-deploy-vm.yml    # CD: Deploy to Azure Virtual Machine (Legacy/IIS)
 docker/
   Dockerfile.template      # Standard multi-stage Dockerfile
 DESIGN.md                  # This document
@@ -26,16 +27,14 @@ DESIGN.md                  # This document
 
 ## 3. Workflow Design Specifications
 
-### 3.1 Universal CI Workflow (`dotnet-ci.yml`)
+### 3.1 Legacy Build Workflow (`reusable-build-legacy.yml`)
 
-**Purpose:** To handle the Build, Test, and Package phases for any .NET application (Core or Framework).
+**Purpose:** To handle the Build and Package phases for Legacy .NET Framework applications.
 
 **Key Features:**
-*   **Dynamic Runners:** Supports `ubuntu-latest` for .NET Core and `windows-latest` for legacy .NET Framework applications via the `runs-on` input.
-*   **Legacy Support:** If `runs-on: windows-latest` is selected, the workflow automatically switches to using `setup-msbuild` and `nuget restore` instead of the `dotnet` CLI.
-*   **Automated Versioning:** Integrates **GitVersion** to automatically determine Semantic Versioning (SemVer) based on the git history, tagging assemblies and Docker images consistently.
-*   **Artifact Generation:** Produces generic zip artifacts for VM deployment and Docker images for container deployment.
-*   **Security:** Implements **OIDC (OpenID Connect)** for passwordless authentication to Azure resources (ACR).
+*   **Environment:** Runs on `windows-latest` to support `msbuild`.
+*   **Build:** Uses `microsoft/setup-msbuild` and `nuget restore`.
+*   **Artifact:** Produces a zip package of the build output (`bin/Release`).
 
 ### 3.2 CD Strategy: Containerized (AKS) (`deploy-aks.yml`)
 
@@ -48,20 +47,23 @@ DESIGN.md                  # This document
 4.  **Deploy:** Uses `azure/k8s-deploy` to apply manifests, swapping the image tag with the one generated in CI.
     *   *Input:* Accepts `registry-url` to support different ACRs per environment.
 
-### 3.3 CD Strategy: Virtual Machine (`deploy-vm.yml`)
+### 3.3 CD Strategy: Virtual Machine (`reusable-deploy-vm.yml`)
 
-**Purpose:** Deploys legacy or non-containerized applications to Azure VMs (e.g., IIS web apps, Windows Services).
+**Purpose:** Deploys legacy or non-containerized applications to Azure VMs via Azure Native Services.
+
+**Features:**
+*   **Deployment Strategies:**
+    *   `run-command` (Default): Uses `az vm run-command` to execute the deployment script immediately. Best for ad-hoc deployments.
+    *   `custom-script-extension`: Uses the Azure Custom Script Extension to provision the VM. Best for bootstrapping or state configuration.
 
 **Flow:**
 1.  **Artifact Staging:**
     *   Downloads the build artifacts.
-    *   Zips them into a single package.
     *   Uploads the package to a **Staging Azure Blob Storage** account.
     *   Generates a short-lived **SAS Token**.
 2.  **Execution:**
-    *   Uses **Azure Run Command** (`az vm run-command`) to trigger a deployment script resident on the VM (or passed as a parameter).
-    *   Passes the `PackageUrl` (Blob URL + SAS) to the script.
-    *   *Decision:* The repository must include a `scripts/vm-deploy.ps1` that accepts the URL, downloads the file, and performs the installation (e.g., Unzip to IIS folder).
+    *   **Run Command:** Invokes the script (`scripts/vm-install.ps1`) passing the SAS URL.
+    *   **Extension:** Uploads the script to Blob Storage (SAS), then configures the VM Extension to download and run it.
 
 ## 4. The "No Dockerfile" Strategy
 
