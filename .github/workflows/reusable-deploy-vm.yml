@@ -34,16 +34,16 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Download Artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: ${{ inputs.artifact-name }}
           path: drop
 
       - name: Login to Azure
-        uses: azure/login@v1
+        uses: azure/login@v2
         with:
           client-id: ${{ secrets.azure-client-id }}
           tenant-id: ${{ secrets.azure-tenant-id }}
@@ -51,7 +51,7 @@ jobs:
 
       - name: Upload to Blob Storage
         id: upload
-        uses: azure/CLI@v1
+        uses: azure/CLI@v2
         with:
           inlineScript: |
             # Create container (idempotent check)
@@ -71,7 +71,7 @@ jobs:
 
       - name: Deploy via Run Command
         if: ${{ inputs.deployment-strategy == 'run-command' }}
-        uses: azure/CLI@v1
+        uses: azure/CLI@v2
         with:
           inlineScript: |
             az vm run-command invoke \
@@ -83,7 +83,7 @@ jobs:
 
       - name: Deploy via Custom Script Extension
         if: ${{ inputs.deployment-strategy == 'custom-script-extension' }}
-        uses: azure/CLI@v1
+        uses: azure/CLI@v2
         with:
           inlineScript: |
              # Upload Installation Script

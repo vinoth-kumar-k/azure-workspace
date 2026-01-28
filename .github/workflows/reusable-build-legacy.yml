@@ -21,10 +21,10 @@ jobs:
     outputs:
       artifact-name: 'legacy-app-package'
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v1.1
+        uses: microsoft/setup-msbuild@v2
 
       - name: Restore NuGet packages
         run: nuget restore ${{ inputs.solution-path }}
@@ -37,7 +37,7 @@ jobs:
             Compress-Archive -Path src/LegacyApp/bin/${{ inputs.configuration }}/* -DestinationPath LegacyApp.zip
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: legacy-app-package
           path: LegacyApp.zip

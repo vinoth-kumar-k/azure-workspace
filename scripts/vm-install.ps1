@@ -9,6 +9,10 @@ try {
     Write-Output "Starting deployment..."
     Write-Output "Target Path: $InstallPath"
 
+    # Ensure clean state (Best Practice)
+    # In a real scenario, we should stop the service/process if it's running
+    # Stop-Process -Name "LegacyApp" -ErrorAction SilentlyContinue
+
     # Create destination directory
     if (!(Test-Path -Path $InstallPath)) {
         New-Item -ItemType Directory -Path $InstallPath -Force | Out-Null
