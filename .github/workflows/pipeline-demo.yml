@@ -1,0 +1,38 @@
+name: Demo Legacy Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+    inputs:
+      deployment-strategy:
+        description: 'run-command or custom-script-extension'
+        required: true
+        default: 'run-command'
+        type: choice
+        options:
+        - run-command
+        - custom-script-extension
+
+jobs:
+  build:
+    name: Build
+    uses: ./.github/workflows/reusable-build-legacy.yml
+    with:
+      solution-path: 'src/LegacyApp/LegacyApp.vbproj'
+      configuration: 'Release'
+
+  deploy:
+    name: Deploy
+    needs: build
+    uses: ./.github/workflows/reusable-deploy-vm.yml
+    with:
+      artifact-name: ${{ needs.build.outputs.artifact-name }}
+      resource-group: 'rg-legacy-apps'
+      vm-name: 'vm-legacy-01'
+      storage-account: 'stlegacyapps01'
+      deployment-strategy: ${{ inputs.deployment-strategy || 'run-command' }}
+    secrets:
+      azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+      azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+      azure-subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}

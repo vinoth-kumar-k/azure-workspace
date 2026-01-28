@@ -35,3 +35,15 @@ override.tf.json
 # Ignore CLI configuration files
 .terraformrc
 terraform.rc
+
+# .NET
+bin/
+obj/
+*.zip
+*.exe
+*.dll
+*.pdb
+*.user
+
+# Simulation
+tests/simulation/bin/
